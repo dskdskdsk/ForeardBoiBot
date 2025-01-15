@@ -29,7 +29,7 @@ dynamic_hashtags = {
 LAST_CHECKED_MESSAGES = {}
 
 # Зберігаємо фрази для фільтрації
-filters_list = [general cargo]
+filters_list = []
 
 # Функція перевірки тексту на динамічні хештеги
 def get_dynamic_hashtags(text):
