@@ -16,7 +16,7 @@ source_channels = [
     "source_channel_2",
     "source_channel_3"
 ]
-target_channel = "thisisofshooore"  # Юзернейм або ID цільового каналу
+target_channel = "@thisisofshooore"  # Юзернейм або ID цільового каналу
 
 # Початкові налаштування
 message_template = "Новий пост з каналу:\n\n{content}\n\n{hashtags}"
