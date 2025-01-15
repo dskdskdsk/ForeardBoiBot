@@ -12,11 +12,11 @@ app = Client(session_name, api_id, api_hash)
 
 # Список джерел і цільовий канал
 source_channels = [
-    "@forwardboibottestchannel",  # Юзернейм або ID джерела
+    "forwardboibottestchannel",  # Юзернейм або ID джерела
     "source_channel_2",
     "source_channel_3"
 ]
-target_channel = "@thisisofshooore"  # Юзернейм або ID цільового каналу
+target_channel = "thisisofshooore"  # Юзернейм або ID цільового каналу
 
 # Початкові налаштування
 message_template = "Новий пост з каналу:\n\n{content}\n\n{hashtags}"
