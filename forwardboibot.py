@@ -8,7 +8,7 @@ api_hash = "69d820891b50ddcdcb9abb473ecdfc32"
 session_name = "my_account"
 
 # Ініціалізація клієнта
-app = Client(session_name, api_id, api_hash)
+app = Client("my_account", api_id="23390151", api_hash="69d820891b50ddcdcb9abb473ecdfc32")
 
 # Список джерел і цільовий канал
 source_channels = [
