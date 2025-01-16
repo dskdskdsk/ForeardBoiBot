@@ -8,7 +8,7 @@ api_hash = "69d820891b50ddcdcb9abb473ecdfc32"
 session_name = "my_account"
 
 # Ініціалізація клієнта
-app = Client("my_account", api_id="23390151", api_hash="69d820891b50ddcdcb9abb473ecdfc32")
+app = Client(session_name, api_id=api_id, api_hash=api_hash)
 
 # Список джерел і цільовий канал
 source_channels = [
@@ -35,31 +35,27 @@ filters_list = ["general cargo"]
 def get_dynamic_hashtags(text):
     hashtags = []
     for keyword, hashtag in dynamic_hashtags.items():
-        # Точний збіг слова (без врахування регістру)
         if re.search(rf'\b{keyword}\b', text, re.IGNORECASE):
             hashtags.append(hashtag)
     return hashtags
 
 # Функція перевірки каналів
 async def check_channels():
-    while True:
-        for channel in source_channels:
-            async for message in app.get_chat_history(channel, limit=10):
-                if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
-                    # Ігнорувати повідомлення з медіа або посиланнями
-                    if message.text and not message.media and not re.search(r'http[s]?://', message.text):
-                        # Перевірка на наявність заборонених фраз
-                        if any(phrase.lower() in message.text.lower() for phrase in filters_list):
-                            print("Пост містить заборонену фразу, не копіюємо.")
-                        else:
-                            original_text = message.text
-                            dynamic_tags = get_dynamic_hashtags(original_text)
-                            all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
-                            formatted_message = message_template.format(content=original_text, hashtags=all_hashtags)
-                            await app.send_message(target_channel, formatted_message)
-                    LAST_CHECKED_MESSAGES[channel] = message.id
-        print("Перевірка завершена. Засинаємо на 5 хвилин.")
-        await asyncio.sleep(300)
+    for channel in source_channels:
+        async for message in app.get_chat_history(channel, limit=10):
+            if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
+                if message.text and not message.media and not re.search(r'http[s]?://', message.text):
+                    if any(phrase.lower() in message.text.lower() for phrase in filters_list):
+                        print("Пост містить заборонену фразу, не копіюємо.")
+                    else:
+                        original_text = message.text
+                        dynamic_tags = get_dynamic_hashtags(original_text)
+                        all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
+                        formatted_message = message_template.format(content=original_text, hashtags=all_hashtags)
+                        await app.send_message(target_channel, formatted_message)
+                LAST_CHECKED_MESSAGES[channel] = message.id
+    print("Перевірка завершена. Засинаємо на 5 хвилин.")
+    await asyncio.sleep(300)
 
 # Команда /help
 @app.on_message(filters.private & filters.command("help"))
@@ -167,7 +163,8 @@ async def manual_trigger(_, message):
 async def main():
     async with app:
         print("Бот запущений.")
-        await check_channels()  # Запускаємо автоматичну перевірку
+        while True:
+            await check_channels()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    app.run(main)
