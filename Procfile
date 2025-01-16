@@ -1,2 +1,2 @@
-web: gunicorn ForwardBoiBot:main
+web: gunicorn forwardboibot:main
 worker: python forwardboibot.py
