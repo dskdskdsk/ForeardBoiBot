@@ -13,8 +13,8 @@ app = Client(session_name, api_id=api_id, api_hash=api_hash)
 # Список джерел і цільовий канал
 source_channels = [
     "@forwardboibottestchannel",  # Юзернейм або ID джерела
-    "source_channel_2",
-    "source_channel_3"
+    "@OnlyOffshore",
+    "@roster_marine"
 ]
 target_channel = "@thisisofshooore"  # Юзернейм або ID цільового каналу
 
