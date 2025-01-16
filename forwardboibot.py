@@ -159,12 +159,10 @@ async def manual_trigger(_, message):
     await check_channels()
     await message.reply("Перевірка завершена.")
 
-# Основний блок запуску
 async def main():
-    async with app:
-        print("Бот запущений.")
-        while True:
-            await check_channels()
+    print("Бот запущений.")
+    while True:
+        await check_channels()
 
 if __name__ == "__main__":
-    app.run(main)
+    app.run(main())  # Передаємо корутину main()
