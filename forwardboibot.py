@@ -159,10 +159,33 @@ async def manual_trigger(_, message):
     await check_channels()
     await message.reply("Перевірка завершена.")
 
-async def main():
-    print("Бот запущений.")
+async def check_channels():
+    await app.start()  # Переконайтесь, що клієнт запущений перед використанням
+
     while True:
-        await check_channels()
+        for channel in source_channels:
+            async for message in app.get_chat_history(channel, limit=10):
+                if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
+                    # Ігнорувати повідомлення з медіа або посиланнями
+                    if message.text and not message.media and not re.search(r'http[s]?://', message.text):
+                        # Перевірка на наявність заборонених фраз
+                        if any(phrase.lower() in message.text.lower() for phrase in filters_list):
+                            print("Пост містить заборонену фразу, не копіюємо.")
+                        else:
+                            original_text = message.text
+                            dynamic_tags = get_dynamic_hashtags(original_text)
+                            all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
+                            formatted_message = message_template.format(content=original_text, hashtags=all_hashtags)
+                            await app.send_message(target_channel, formatted_message)
+                    LAST_CHECKED_MESSAGES[channel] = message.id
+        print("Перевірка завершена. Засинаємо на 5 хвилин.")
+        await asyncio.sleep(300)
+
+# Основний блок запуску
+async def main():
+    async with app:
+        print("Бот запущений.")
+        await check_channels()  # Запускаємо автоматичну перевірку
 
 if __name__ == "__main__":
-    app.run(main())  # Передаємо корутину main()
+    app.run(main())  # Запуск бота
