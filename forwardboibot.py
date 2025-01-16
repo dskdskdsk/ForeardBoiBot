@@ -169,5 +169,6 @@ async def main():
         print("Бот запущений.")
         await check_channels()  # Запускаємо автоматичну перевірку
 
+# Для Gunicorn
 if __name__ == "__main__":
     asyncio.run(main())
