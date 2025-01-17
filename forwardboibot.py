@@ -51,6 +51,7 @@ def get_dynamic_hashtags(text):
 def extract_existing_hashtags(text):
     return re.findall(r"#\w+", text)
 
+# Функція перевірки каналів
 async def check_channels():
     for channel in source_channels:
         async for message in app.get_chat_history(channel, limit=10):
@@ -68,13 +69,12 @@ async def check_channels():
                     else:
                         original_text = message.text
 
-                        # Витягуємо існуючі хештеги
+                        # Витягуємо існуючі хештеги з тексту
                         existing_hashtags = extract_existing_hashtags(original_text)
 
                         if existing_hashtags:
-                            # Якщо є хештеги в тексті, використовуємо тільки їх
-                            all_hashtags = " ".join(existing_hashtags)
-                            formatted_message = f"{original_text}\n\n{all_hashtags}"
+                            # Якщо в тексті вже є хештеги, залишаємо тільки їх
+                            formatted_message = f"{original_text}\n\n{' '.join(existing_hashtags)}"
                         else:
                             # Генеруємо динамічні хештеги і додаємо постійні
                             dynamic_tags = get_dynamic_hashtags(original_text)
