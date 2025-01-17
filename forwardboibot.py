@@ -195,34 +195,6 @@ async def manual_trigger(_, message):
     await check_channels()
     await message.reply("Перевірка завершена.")
 
-async def check_channels():
-    if not app.is_connected:  # Перевіряємо, чи не підключений клієнт
-        await app.start()  # Підключаємося до Telegram лише, якщо не підключено
-
-    while True:
-        for channel in source_channels:
-            try:
-                print(f"Перевіряємо канал: {channel}")
-                async for message in app.get_chat_history(channel, limit=10):
-                    if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
-                        # Ігноруємо повідомлення з медіа або посиланнями
-                        if message.text and not message.media and not re.search(r'http[s]?://', message.text):
-                            # Перевірка на наявність заборонених фраз
-                            if any(phrase.lower() in message.text.lower() for phrase in filters_list):
-                                print("Пост містить заборонену фразу, не копіюємо.")
-                            else:
-                                original_text = message.text
-                                dynamic_tags = get_dynamic_hashtags(original_text)
-                                all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
-                                formatted_message = message_template.format(content=original_text, hashtags=all_hashtags)
-                                await app.send_message(target_channel, formatted_message)
-                        LAST_CHECKED_MESSAGES[channel] = message.id
-            except Exception as e:
-                print(f"Помилка при обробці каналу {channel}: {e}")
-
-        print("Перевірка завершена. Засинаємо на 5 хвилин.")
-        await asyncio.sleep(300)
-
 # Основний блок запуску
 async def main():
     async with app:
