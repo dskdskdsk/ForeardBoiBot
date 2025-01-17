@@ -69,14 +69,15 @@ async def check_channels():
                     else:
                         original_text = message.text
 
-                        # Витягуємо існуючі хештеги з тексту
+                        # Витягуємо існуючі хештеги
                         existing_hashtags = extract_existing_hashtags(original_text)
 
                         if existing_hashtags:
-                            # Якщо в тексті вже є хештеги, залишаємо тільки їх
-                            formatted_message = f"{original_text}\n\n{' '.join(existing_hashtags)}"
+                            # Якщо є хештеги в тексті, використовуємо тільки їх
+                            all_hashtags = " ".join(existing_hashtags)
+                            formatted_message = f"{original_text}\n\n{all_hashtags}"
                         else:
-                            # Генеруємо динамічні хештеги і додаємо постійні
+                            # Якщо хештегів немає, додаємо лише постійні та динамічні
                             dynamic_tags = get_dynamic_hashtags(original_text)
                             all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
                             formatted_message = message_template.format(content=original_text, hashtags=all_hashtags)
@@ -92,7 +93,6 @@ async def check_channels():
 
     print("Перевірка завершена. Засинаємо на 5 хвилин.")
     await asyncio.sleep(300)
-
 
 # Команда /help
 @app.on_message(filters.private & filters.command("help"))
