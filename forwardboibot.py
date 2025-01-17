@@ -51,6 +51,14 @@ def get_dynamic_hashtags(text):
 def extract_existing_hashtags(text):
     return re.findall(r"#\w+", text)
 
+# Функція для видалення хештегів з тексту
+def remove_hashtags(text):
+    return re.sub(r'#\w+', '', text)
+
+# Функція для виділення хештегів із тексту
+def extract_existing_hashtags(text):
+    return re.findall(r'#\w+', text)
+
 # Функція перевірки каналів
 async def check_channels():
     for channel in source_channels:
