@@ -1,6 +1,7 @@
 import asyncio
 from pyrogram import Client, filters
 import re
+import hashlib
 
 # Параметри вашого облікового запису
 api_id = "23390151"
@@ -31,6 +32,13 @@ LAST_CHECKED_MESSAGES = {}
 # Зберігаємо фрази для фільтрації
 filters_list = ["general cargo"]
 
+# Унікальні хеші повідомлень (в межах однієї сесії)
+posted_hashes = set()
+
+# Функція створення хешу для тексту
+def generate_hash(text):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
 # Функція перевірки тексту на динамічні хештеги
 def get_dynamic_hashtags(text):
     hashtags = []
@@ -45,6 +53,10 @@ async def check_channels():
         async for message in app.get_chat_history(channel, limit=10):
             if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
                 if message.text and not message.media and not re.search(r'http[s]?://', message.text):
+                    post_hash = generate_hash(message.text)
+                    if post_hash in posted_hashes:
+                        print("Цей пост вже був оброблений. Пропускаємо.")
+                        continue
                     if any(phrase.lower() in message.text.lower() for phrase in filters_list):
                         print("Пост містить заборонену фразу, не копіюємо.")
                     else:
@@ -53,6 +65,7 @@ async def check_channels():
                         all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
                         formatted_message = message_template.format(content=original_text, hashtags=all_hashtags)
                         await app.send_message(target_channel, formatted_message)
+                        posted_hashes.add(post_hash)
                 LAST_CHECKED_MESSAGES[channel] = message.id
     print("Перевірка завершена. Засинаємо на 5 хвилин.")
     await asyncio.sleep(300)
