@@ -51,7 +51,6 @@ def get_dynamic_hashtags(text):
 def extract_existing_hashtags(text):
     return re.findall(r"#\w+", text)
 
-# Функція перевірки каналів
 async def check_channels():
     for channel in source_channels:
         async for message in app.get_chat_history(channel, limit=10):
@@ -62,31 +61,32 @@ async def check_channels():
                     if post_hash in posted_hashes:
                         print("Цей пост вже був оброблений. Пропускаємо.")
                         continue
-                    
+
                     # Перевірка на заборонені фрази
                     if any(phrase.lower() in message.text.lower() for phrase in filters_list):
                         print("Пост містить заборонену фразу, не копіюємо.")
                     else:
                         original_text = message.text
 
-                        # Перевірка тексту на наявність існуючих хештегів
+                        # Витягуємо існуючі хештеги
                         existing_hashtags = extract_existing_hashtags(original_text)
 
                         if existing_hashtags:
-                            # Якщо в тексті вже є хештеги, залишаємо тільки їх
+                            # Якщо є хештеги в тексті, використовуємо тільки їх
                             all_hashtags = " ".join(existing_hashtags)
+                            formatted_message = f"{original_text}\n\n{all_hashtags}"
                         else:
-                            # Додаємо свої хештеги
+                            # Генеруємо динамічні хештеги і додаємо постійні
                             dynamic_tags = get_dynamic_hashtags(original_text)
                             all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
+                            formatted_message = message_template.format(content=original_text, hashtags=all_hashtags)
 
-                        # Формуємо фінальний текст повідомлення
-                        formatted_message = message_template.format(content=original_text, hashtags=all_hashtags)
+                        # Надсилаємо повідомлення
                         await app.send_message(target_channel, formatted_message)
                         
                         # Зберігаємо хеш поста, щоб уникнути дублювання
                         posted_hashes.add(post_hash)
-                
+
                 # Оновлюємо останнє перевірене повідомлення для каналу
                 LAST_CHECKED_MESSAGES[channel] = message.id
 
