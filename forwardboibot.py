@@ -73,14 +73,22 @@ async def check_channels():
                         existing_hashtags = extract_existing_hashtags(original_text)
 
                         if existing_hashtags:
-                            # Якщо є хештеги в тексті, додаємо їх без шаблонів
-                            formatted_message = f"{original_text}\n\n{' '.join(existing_hashtags)}"
-                        else:
-                            # Якщо хештегів немає, додаємо постійні та динамічні
-                            dynamic_tags = get_dynamic_hashtags(original_text)
-                            all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
-                            formatted_message = f"{original_text}\n\n{all_hashtags}"
-
+    # Додаємо текст із шаблону, уникаючи дублювання хештегів
+    unique_hashtags = set(existing_hashtags + permanent_hashtags)
+    dynamic_tags = get_dynamic_hashtags(original_text)
+    unique_hashtags.update(dynamic_tags)  # Додаємо динамічні хештеги
+    formatted_message = message_template.format(
+        content=original_text,
+        hashtags=" ".join(unique_hashtags)
+    )
+else:
+    # Якщо немає хештегів, додаємо текст із шаблону та постійні хештеги
+    dynamic_tags = get_dynamic_hashtags(original_text)
+    all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
+    formatted_message = message_template.format(
+        content=original_text,
+        hashtags=all_hashtags
+    )
                         # Надсилаємо повідомлення
                         await app.send_message(target_channel, formatted_message)
 
