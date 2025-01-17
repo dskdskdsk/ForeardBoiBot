@@ -56,6 +56,7 @@ async def check_channels():
     for channel in source_channels:
         async for message in app.get_chat_history(channel, limit=10):
             if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
+                # Ігноруємо повідомлення з медіа або посиланнями
                 if message.text and not message.media and not re.search(r'http[s]?://', message.text):
                     # Генеруємо хеш поста для унікальності
                     post_hash = generate_hash(message.text)
@@ -73,22 +74,23 @@ async def check_channels():
                         existing_hashtags = extract_existing_hashtags(original_text)
 
                         if existing_hashtags:
-    # Додаємо текст із шаблону, уникаючи дублювання хештегів
-    unique_hashtags = set(existing_hashtags + permanent_hashtags)
-    dynamic_tags = get_dynamic_hashtags(original_text)
-    unique_hashtags.update(dynamic_tags)  # Додаємо динамічні хештеги
-    formatted_message = message_template.format(
-        content=original_text,
-        hashtags=" ".join(unique_hashtags)
-    )
-else:
-    # Якщо немає хештегів, додаємо текст із шаблону та постійні хештеги
-    dynamic_tags = get_dynamic_hashtags(original_text)
-    all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
-    formatted_message = message_template.format(
-        content=original_text,
-        hashtags=all_hashtags
-    )
+                            # Якщо є хештеги, уникаємо дублювання
+                            unique_hashtags = set(existing_hashtags + permanent_hashtags)
+                            dynamic_tags = get_dynamic_hashtags(original_text)
+                            unique_hashtags.update(dynamic_tags)  # Додаємо динамічні хештеги
+                            formatted_message = message_template.format(
+                                content=original_text,
+                                hashtags=" ".join(unique_hashtags)
+                            )
+                        else:
+                            # Якщо хештегів немає, додаємо постійні та динамічні
+                            dynamic_tags = get_dynamic_hashtags(original_text)
+                            all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
+                            formatted_message = message_template.format(
+                                content=original_text,
+                                hashtags=all_hashtags
+                            )
+
                         # Надсилаємо повідомлення
                         await app.send_message(target_channel, formatted_message)
 
