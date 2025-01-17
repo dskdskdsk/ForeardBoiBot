@@ -70,26 +70,20 @@ async def check_channels():
                     else:
                         original_text = message.text
 
-                        # Витягуємо існуючі хештеги
+                        # Витягуємо існуючі хештеги та видаляємо їх з тексту
                         existing_hashtags = extract_existing_hashtags(original_text)
+                        cleaned_text = remove_hashtags(original_text)
 
-                        if existing_hashtags:
-                            # Якщо є хештеги, уникаємо дублювання
-                            unique_hashtags = set(existing_hashtags + permanent_hashtags)
-                            dynamic_tags = get_dynamic_hashtags(original_text)
-                            unique_hashtags.update(dynamic_tags)  # Додаємо динамічні хештеги
-                            formatted_message = message_template.format(
-                                content=original_text,
-                                hashtags=" ".join(unique_hashtags)
-                            )
-                        else:
-                            # Якщо хештегів немає, додаємо постійні та динамічні
-                            dynamic_tags = get_dynamic_hashtags(original_text)
-                            all_hashtags = " ".join(permanent_hashtags + dynamic_tags)
-                            formatted_message = message_template.format(
-                                content=original_text,
-                                hashtags=all_hashtags
-                            )
+                        # Формуємо список унікальних хештегів
+                        unique_hashtags = set(existing_hashtags + permanent_hashtags)
+                        dynamic_tags = get_dynamic_hashtags(cleaned_text)
+                        unique_hashtags.update(dynamic_tags)  # Додаємо динамічні хештеги
+
+                        # Формуємо кінцевий текст
+                        formatted_message = message_template.format(
+                            content=cleaned_text.strip(),
+                            hashtags=" ".join(unique_hashtags)
+                        )
 
                         # Надсилаємо повідомлення
                         await app.send_message(target_channel, formatted_message)
