@@ -50,7 +50,7 @@ logging.basicConfig(
 
 # S3 _____________________________________________________________________________________
 
-S3_BUCKET_NAME = "your-bucket-name"
+S3_BUCKET_NAME = "forwardboibot"
 LOCAL_CACHE_DIR = "/tmp/cache"  # Локальна директорія для збереження файлів
 
 # Підключення до S3
