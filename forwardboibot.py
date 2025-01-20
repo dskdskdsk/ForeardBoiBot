@@ -327,8 +327,8 @@ async def main():
     async with app:
         logging.info("Бот запущений.")
         while True:
-    await check_channels()
-    await asyncio.sleep(60)  # Затримка між перевірками
+            await check_channels()
+            await asyncio.sleep(60)  # Затримка між перевірками
             
 if __name__ == "__main__":
     asyncio.run(main())  # Використовується asyncio для асинхронного запуску
