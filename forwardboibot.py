@@ -106,29 +106,45 @@ app = Client(session_name, api_id=api_id, api_hash=api_hash)
 async def log_commands(_, message):
     logging.info(f"Отримана команда: {message.text}")
 
+# Команда /help
 @app.on_message(filters.private & filters.command("help"))
 async def help_command(_, message):
+    """Виводить список доступних команд."""
     help_text = """
 Доступні команди:
-- /set_template {шаблон} — змінити шаблон для повідомлень.
-- /add_hashtag слово:хештег — додати динамічний хештег.
-- /remove_hashtag слово — видалити динамічний хештег.
-- /list_hashtags — показати список динамічних хештегів.
-- /show_template — показати поточний шаблон повідомлення.
-- /check — запустити перевірку каналів вручну.
-- /add_filter {фраза} — додати фразу для фільтрації.
-- /remove_filter {фраза} — видалити фразу з фільтрації.
-- /list_filters — показати список фраз для фільтрації.
-"""
+
+- **/show_template {шаблон}** — показати шаблон для повідомлень.
+- **/set_template {шаблон}** — змінити шаблон для повідомлень.
+- **/add_hashtag слово:хештег** — додати динамічний хештег.
+- **/remove_hashtag слово** — видалити динамічний хештег.
+- **/list_hashtags** — показати список динамічних хештегів.
+- **/add_filter {фраза}** — додати фразу для фільтрації.
+- **/remove_filter {фраза}** — видалити фразу з фільтрації.
+- **/list_filters** — показати список фраз для фільтрації.
+- **/addchannel @канал** — додати джерело каналів.
+- **/removechannel @канал** — видалити канал зі списку джерел.
+- **/list_channels** — показати список усіх джерел.
+- **/check** — запустити перевірку каналів вручну.
+- **/info** — отримати інформацію про поточні налаштування.
+- **/start** — почати роботу з ботом (початкове налаштування).
+    """
+    logging.info("Список команд відправлено.")
     await message.reply(help_text)
+
+# Команда /show_template
+@app.on_message(filters.private & filters.command("show_template"))
+async def show_template(_, message):
+    await message.reply(f"Поточний шаблон:\n\n{message_template}")
 
 # Команда /set_template
 @app.on_message(filters.private & filters.command("set_template"))
 async def set_template(_, message):
+    """Змінює шаблон для повідомлень."""
     global message_template
     new_template = message.text[len("/set_template "):].strip()
     if new_template:
         message_template = new_template
+        logging.info(f"Шаблон оновлено на: {message_template}")
         await message.reply(f"Шаблон оновлено:\n\n{message_template}")
     else:
         await message.reply("Будь ласка, вкажіть новий шаблон після команди.")
@@ -136,12 +152,13 @@ async def set_template(_, message):
 # Команда /add_hashtag
 @app.on_message(filters.private & filters.command("add_hashtag"))
 async def add_hashtag(_, message):
+    """Додає новий динамічний хештег."""
     global dynamic_hashtags
     try:
-        # Розділяємо за двокрапкою
         keyword, hashtag = map(str.strip, message.text[len("/add_hashtag "):].split(":"))
         if keyword and hashtag:
             dynamic_hashtags[keyword] = hashtag
+            logging.info(f"Додано динамічний хештег: '{keyword}' => '{hashtag}'")
             await message.reply(f"Додано динамічний хештег:\n'{keyword}' => '{hashtag}'")
         else:
             raise ValueError
@@ -151,35 +168,36 @@ async def add_hashtag(_, message):
 # Команда /remove_hashtag
 @app.on_message(filters.private & filters.command("remove_hashtag"))
 async def remove_hashtag(_, message):
+    """Видаляє динамічний хештег."""
     global dynamic_hashtags
     keyword = message.text[len("/remove_hashtag "):].strip()
     if keyword in dynamic_hashtags:
         del dynamic_hashtags[keyword]
+        logging.info(f"Хештег для '{keyword}' видалено.")
         await message.reply(f"Хештег для '{keyword}' видалено.")
     else:
         await message.reply(f"Хештег для '{keyword}' не знайдено.")
 
-# Команда /list_hashtags
+# Команда /list_hashtag
 @app.on_message(filters.private & filters.command("list_hashtags"))
 async def list_hashtags(_, message):
+    """Показує список динамічних хештегів."""
     if dynamic_hashtags:
         hashtags_list = "\n".join([f"{key}: {value}" for key, value in dynamic_hashtags.items()])
+        logging.info("Список динамічних хештегів відправлено.")
         await message.reply(f"Список динамічних хештегів:\n{hashtags_list}")
     else:
         await message.reply("Список динамічних хештегів порожній.")
 
-# Команда /show_template
-@app.on_message(filters.private & filters.command("show_template"))
-async def show_template(_, message):
-    await message.reply(f"Поточний шаблон:\n\n{message_template}")
-
 # Команда /add_filter
 @app.on_message(filters.private & filters.command("add_filter"))
 async def add_filter(_, message):
+    """Додає нову фразу до фільтрів."""
     global filters_list
-    phrase = " ".join(message.text.split()[1:])  # Отримуємо фразу без команди
+    phrase = message.text[len("/add_filter "):].strip()
     if phrase and phrase not in filters_list:
         filters_list.append(phrase)
+        logging.info(f"Фразу '{phrase}' додано до фільтрів.")
         await message.reply(f"Фразу '{phrase}' додано до фільтрів.")
     else:
         await message.reply(f"Фраза '{phrase}' вже є або не вказано тексту.")
@@ -187,20 +205,120 @@ async def add_filter(_, message):
 # Команда /remove_filter
 @app.on_message(filters.private & filters.command("remove_filter"))
 async def remove_filter(_, message):
+    """Видаляє фразу з фільтрів."""
     global filters_list
-    phrase = " ".join(message.text.split()[1:])
+    phrase = message.text[len("/remove_filter "):].strip()
     if phrase in filters_list:
         filters_list.remove(phrase)
+        logging.info(f"Фразу '{phrase}' видалено з фільтрів.")
         await message.reply(f"Фразу '{phrase}' видалено з фільтрів.")
     else:
         await message.reply(f"Фраза '{phrase}' не знайдена у фільтрах.")
 
+# Команда /list_filters
+@app.on_message(filters.private & filters.command("list_filters"))
+async def list_filters(_, message):
+    """Показує список фраз для фільтрації."""
+    if filters_list:
+        filters_text = "\n".join(filters_list)
+        logging.info("Список фільтрів відправлено.")
+        await message.reply(f"Список фраз для фільтрації:\n{filters_text}")
+    else:
+        await message.reply("Список фільтрів порожній.")
+
 # Команда /check
 @app.on_message(filters.private & filters.command("check"))
 async def manual_trigger(_, message):
+    """Вручну запускає перевірку каналів."""
+    logging.info("Запуск перевірки каналів вручну за допомогою команди /check.")
     await message.reply("Запускаємо перевірку каналів...")
     await check_channels()
     await message.reply("Перевірка завершена.")
+
+# Команда /info
+@app.on_message(filters.private & filters.command("info"))
+async def get_info(_, message):
+    """Надає інформацію про поточний стан бота."""
+    logging.info("Отримання інформації про стан бота за допомогою команди /info.")
+    info_message = (
+        f"Інформація про бота:\n"
+        f"- Перевіряється {len(source_channels)} каналів.\n"
+        f"- Кількість збережених хешів: {len(posted_hashes)}\n"
+        f"- Цільовий канал: {target_channel}\n"
+        f"- Статус: Активний\n"
+        f"- Час до наступної перевірки: 6 годин."
+    )
+    await message.reply(info_message)
+
+# Команда /addchannel
+@app.on_message(filters.private & filters.command("addchannel"))
+async def add_channel(_, message):
+    """Додає новий канал до списку джерел."""
+    try:
+        channel = message.text.split(" ", 1)[1].strip()
+        if not channel.startswith("@"):
+            raise ValueError("Канал повинен починатися з '@'.")
+        if channel in source_channels:
+            await message.reply(f"Канал {channel} вже є в списку джерел.")
+            return
+        source_channels.append(channel)
+        logging.info(f"Канал {channel} додано до списку джерел.")
+        await message.reply(f"Канал {channel} успішно додано.")
+    except IndexError:
+        await message.reply("Будь ласка, вкажіть канал у форматі '@channel'.")
+    except Exception as e:
+        logging.error(f"Помилка при додаванні каналу: {e}")
+        await message.reply(f"Помилка: {e}")
+
+# Команда /removechannel
+@app.on_message(filters.private & filters.command("removechannel"))
+async def remove_channel(_, message):
+    """Видаляє канал із списку джерел."""
+    try:
+        channel = message.text.split(" ", 1)[1].strip()
+        if channel not in source_channels:
+            await message.reply(f"Каналу {channel} немає в списку джерел.")
+            return
+        source_channels.remove(channel)
+        logging.info(f"Канал {channel} видалено зі списку джерел.")
+        await message.reply(f"Канал {channel} успішно видалено.")
+    except IndexError:
+        await message.reply("Будь ласка, вкажіть канал у форматі '@channel'.")
+    except Exception as e:
+        logging.error(f"Помилка при видаленні каналу: {e}")
+        await message.reply(f"Помилка: {e}")
+
+# Команда /hashinfo
+@app.on_message(filters.private & filters.command("hashinfo"))
+async def hash_info(_, message):
+    """Показує загальну інформацію про збережені хеші."""
+    logging.info("Запит інформації про збережені хеші через команду /hashinfo.")
+    hash_message = (
+        f"Інформація про збережені хеші:\n"
+        f"- Загальна кількість хешів: {len(posted_hashes)}\n"
+        f"- Локальний кеш файл: {'Знайдено' if os.path.exists(LOCAL_CACHE_FILE) else 'Не знайдено'}\n"
+        f"- Хеш-файл у S3: {S3_FILE_KEY}\n"
+    )
+    await message.reply(hash_message)
+
+# Команда /start
+@app.on_message(filters.private & filters.command("start"))
+async def start_command(_, message):
+    """Початкове привітання та коротке пояснення функціоналу."""
+    start_text = """
+Привіт! 👋
+Я бот для автоматизації обробки постів із Telegram-каналів. Ось що я можу:
+- Переносити пости з каналів-джерел у ваш цільовий канал.
+- Додавати/видаляти хештеги та фільтрувати контент.
+- Гнучко налаштовувати шаблони повідомлень.
+
+Список доступних команд:
+- **/help** — Показати всі доступні команди.
+
+Налаштуйте мене під свої потреби та запустіть обробку командою **/check**!
+"""
+    logging.info("Користувач викликав команду /start.")
+    await message.reply(start_text)
 
 # === Основна функція перевірки каналів ===
 async def check_channels():
