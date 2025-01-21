@@ -324,11 +324,11 @@ async def start_command(_, message):
 async def check_channels():
     global posted_hashes
     for channel in source_channels:
+        logging.info(f"Перевірка каналу: {channel}")  # Лог для кожного каналу
         async for message in app.get_chat_history(channel, limit=10):
+            logging.info(f"Перевірка повідомлення з каналу {channel}, ID {message.id}")  # Лог для кожного повідомлення
             if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
-                # Ігноруємо повідомлення з медіа або посиланнями
                 if message.text and not message.media and not re.search(r'http[s]?://', message.text):
-                    # Генеруємо хеш поста для унікальності
                     post_hash = generate_hash(message.text)
                     if post_hash in posted_hashes:
                         logging.info(f"Цей пост із ID {message.id} вже оброблений.")
