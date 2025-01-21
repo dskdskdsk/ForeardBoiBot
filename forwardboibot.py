@@ -132,7 +132,9 @@ def load_hashes_from_s3():
         return []
 
 
-# === Приклад використання ===# Нові хеші для додавання
+# === Приклад використання ===
+ https://t.me/thisisofshooore/172 This is OFSHOOORE, [19 янв. 2025 в 20:57]
+# Нові хеші для додавання
 new_hashes_to_add = ["hash1", "hash2", "hash3"]
 
 # Додаємо нові хеші в файл поточного місяця
@@ -213,7 +215,9 @@ def update_hashes_in_s3(posted_hashes):
     else:
         logging.info("Немає нових хешів для оновлення на S3.")
 
-# Команди для бота в Telegram _____________________________________________________________# Команда /help
+# Команди для бота в Telegram _____________________________________________________________
+ https://t.me/thisisofshooore/173 This is OFSHOOORE, [19 янв. 2025 в 20:57]
+# Команда /help
 @app.on_message(filters.private & filters.command("help"))
 async def help_command(_, message):
     help_text = """
@@ -306,7 +310,9 @@ async def list_filters(_, message):
     if filters_list:
         await message.reply(f"Ключові фрази для фільтрації:\n" + "\n".join(filters_list))
     else:
-        await message.reply("Немає фраз для фільтрації.")# Команда /check
+        await message.reply("Немає фраз для фільтрації.")
+ https://t.me/thisisofshooore/174 This is OFSHOOORE, [19 янв. 2025 в 20:57]
+# Команда /check
 @app.on_message(filters.private & filters.command("check"))
 async def manual_trigger(_, message):
     await message.reply("Запускаємо перевірку каналів...")
@@ -323,5 +329,5 @@ async def main():
         while True:
             await check_channels()
             
-if name == "main":
+if __name__ == "main":
     asyncio.run(main())  # Використовується asyncio для асинхронного запуску
