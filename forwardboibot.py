@@ -150,6 +150,9 @@ async def check_channels():
 # === Завантаження попередніх хешів ===
 posted_hashes = load_hashes_from_s3()
 
+# === Створення об'єкта Client ===
+app = Client(session_name, api_id=api_id, api_hash=api_hash)
+
 # === Запуск бота ===
 @app.on_message(filters.private & filters.command("check"))
 async def manual_trigger(_, message):
@@ -163,5 +166,4 @@ async def main():
         await check_channels()
 
 if __name__ == "__main__":
-    app = Client(session_name, api_id=api_id, api_hash=api_hash)
     app.run(main())
