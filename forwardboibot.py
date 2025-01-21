@@ -134,7 +134,9 @@ def remove_hashtags(text):
 async def fetch_channel_history(client, channel_username, retries=5, delay=5):
     for attempt in range(1, retries + 1):
         try:
-            history = await client.get_chat_history(channel_username, limit=10)
+            history = []
+            async for message in client.get_chat_history(channel_username, limit=10):
+                history.append(message)
             logging.info(f"Отримано {len(history)} повідомлень з каналу {channel_username}")
             return history
         except Exception as e:
@@ -142,7 +144,7 @@ async def fetch_channel_history(client, channel_username, retries=5, delay=5):
             if attempt == retries:
                 logging.error(f"Не вдалося отримати історію {channel_username} після {retries} спроб.")
                 raise
-
+                
 # Основна функція перевірки каналів
 async def periodic_channel_check():
     global posted_hashes
