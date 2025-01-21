@@ -98,6 +98,9 @@ def get_dynamic_hashtags(text):
     """Отримує динамічні хештеги на основі ключових слів."""
     return [hashtag for keyword, hashtag in dynamic_hashtags.items() if re.search(rf'\b{keyword}\b', text, re.IGNORECASE)]
 
+# === Створення об'єкта Client ===
+app = Client(session_name, api_id=api_id, api_hash=api_hash)
+
 # Команда /help
 @app.on_message(filters.private & filters.command("help"))
 async def help_command(_, message):
@@ -196,16 +199,7 @@ async def check_channels():
 # === Завантаження попередніх хешів ===
 posted_hashes = load_hashes_from_s3()
 
-# === Створення об'єкта Client ===
-app = Client(session_name, api_id=api_id, api_hash=api_hash)
-
 # === Запуск бота ===
-@app.on_message(filters.private & filters.command("check"))
-async def manual_trigger(_, message):
-    await message.reply("Запускаємо перевірку каналів...")
-    await check_channels()
-    await message.reply("Перевірка завершена.")
-
 async def main():
     async with app:
         logging.info("Бот запущений.")
