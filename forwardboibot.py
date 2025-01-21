@@ -13,8 +13,8 @@ api_id = "23390151"
 api_hash = "69d820891b50ddcdcb9abb473ecdfc32"
 session_name = "my_account"
 
-# Ініціалізація клієнта Telegram з додатковими параметрами
-app = Client(session_name, api_id=api_id, api_hash=api_hash, timeout=30, retries=5)
+# Ініціалізація клієнта Telegram
+app = Client(session_name, api_id=api_id, api_hash=api_hash)
 
 # Список джерел і цільовий канал
 source_channels = [
@@ -36,10 +36,10 @@ dynamic_hashtags = {
 # Останні перевірені повідомлення
 LAST_CHECKED_MESSAGES = {}
 
-# Фільтрація текстів
+# Список фільтрів
 filters_list = ["general cargo"]
 
-# Унікальні хеші повідомлень
+# Унікальні хеші повідомлень (в межах однієї сесії)
 posted_hashes = set()
 
 # Логування
@@ -48,11 +48,11 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-# S3 _____________________________________________________________________________________
-
+# Параметри Amazon S3
 S3_BUCKET_NAME = "forwardboibot"
-LOCAL_CACHE_DIR = "/tmp/cache"
+LOCAL_CACHE_DIR = "/tmp/cache"  # Локальна директорія для збереження файлів
 
+# Підключення до S3
 s3_client = boto3.client('s3')
 
 def get_monthly_file_name():
@@ -64,12 +64,12 @@ def download_file_from_s3(file_name):
     os.makedirs(LOCAL_CACHE_DIR, exist_ok=True)
     try:
         s3_client.download_file(S3_BUCKET_NAME, file_name, local_path)
-        logging.info(f"Файл {file_name} завантажено з S3.")
+        print(f"Файл {file_name} завантажено з S3.")
     except s3_client.exceptions.ClientError as e:
         if e.response['Error']['Code'] == "404":
             with open(local_path, 'w') as f:
                 json.dump([], f)
-            logging.info(f"Файл {file_name} не знайдено. Створено новий.")
+            print(f"Файл {file_name} не знайдено на S3. Створено новий локальний файл.")
         else:
             raise
     return local_path
@@ -77,7 +77,7 @@ def download_file_from_s3(file_name):
 def upload_file_to_s3(file_name):
     local_path = os.path.join(LOCAL_CACHE_DIR, file_name)
     s3_client.upload_file(local_path, S3_BUCKET_NAME, file_name)
-    logging.info(f"Файл {file_name} завантажено на S3.")
+    print(f"Файл {file_name} завантажено на S3.")
 
 def read_hashes(file_name):
     local_path = os.path.join(LOCAL_CACHE_DIR, file_name)
@@ -94,26 +94,27 @@ def add_hashes(new_hashes):
         logging.info("Немає нових хешів для додавання.")
         return
     file_name = get_monthly_file_name()
-    local_file_path = download_file_from_s3(file_name)
+    download_file_from_s3(file_name)
     existing_hashes = read_hashes(file_name)
     updated_hashes = list(set(existing_hashes + new_hashes))
     write_hashes(file_name, updated_hashes)
     upload_file_to_s3(file_name)
-    logging.info(f"Додано {len(new_hashes)} нових хешів. Загальна кількість: {len(updated_hashes)}")
+    print(f"Додано {len(new_hashes)} нових хешів. Загальна кількість: {len(updated_hashes)}")
 
 def load_hashes_from_s3():
     file_name = get_monthly_file_name()
     try:
-        local_file_path = download_file_from_s3(file_name)
+        download_file_from_s3(file_name)
         return read_hashes(file_name)
     except Exception as e:
-        logging.error(f"Помилка завантаження хешів: {e}")
+        logging.error(f"Помилка завантаження хешів з S3: {e}")
         return []
 
-# Хеші ____________________________________________________________________________________
+# Функція створення хешу
 def generate_hash(text):
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
+# Функція отримання динамічних хештегів
 def get_dynamic_hashtags(text):
     hashtags = []
     for keyword, hashtag in dynamic_hashtags.items():
@@ -121,11 +122,26 @@ def get_dynamic_hashtags(text):
             hashtags.append(hashtag)
     return hashtags
 
+# Функція отримання існуючих хештегів
 def extract_existing_hashtags(text):
     return re.findall(r"#\w+", text)
 
+# Функція видалення хештегів
 def remove_hashtags(text):
     return re.sub(r'#\w+', '', text)
+
+# Функція отримання історії з повторними спробами
+async def get_chat_history_with_retries(client, channel, retries=5, delay=5):
+    for attempt in range(retries):
+        try:
+            return await client.get_chat_history(channel, limit=10)
+        except Exception as e:
+            if attempt < retries - 1:
+                logging.warning(f"Помилка отримання історії {channel}. Спроба {attempt + 1} з {retries}. Причина: {e}")
+                await asyncio.sleep(delay)
+            else:
+                logging.error(f"Не вдалося отримати історію {channel} після {retries} спроб. Причина: {e}")
+                raise
 
 # Основна функція перевірки каналів
 async def periodic_channel_check():
@@ -139,26 +155,21 @@ async def periodic_channel_check():
                 logging.warning(f"Пропущено канал {channel} через попередні помилки.")
                 continue
             try:
-                async for message in app.get_chat_history(channel, limit=10):
+                async for message in await get_chat_history_with_retries(app, channel):
                     if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
                         if message.text and not message.media and not re.search(r'http[s]?://', message.text):
                             post_hash = generate_hash(message.text)
                             if post_hash in posted_hashes:
-                                logging.info(f"Цей пост із ID {message.id} вже оброблений.")
                                 continue
 
                             if any(phrase.lower() in message.text.lower() for phrase in filters_list):
-                                logging.info(f"Пост із ID {message.id} містить заборонені фрази.")
                                 continue
 
                             original_text = message.text
                             existing_hashtags = extract_existing_hashtags(original_text)
                             cleaned_text = remove_hashtags(original_text)
-
                             unique_hashtags = set(existing_hashtags + permanent_hashtags)
-                            dynamic_tags = get_dynamic_hashtags(cleaned_text)
-                            unique_hashtags.update(dynamic_tags)
-
+                            unique_hashtags.update(get_dynamic_hashtags(cleaned_text))
                             formatted_message = message_template.format(
                                 content=cleaned_text.strip(),
                                 hashtags=" ".join(unique_hashtags)
@@ -166,13 +177,16 @@ async def periodic_channel_check():
                             await app.send_message(target_channel, formatted_message)
                             posted_hashes.add(post_hash)
 
-                    LAST_CHECKED_MESSAGES[channel] = message.id
+                        LAST_CHECKED_MESSAGES[channel] = message.id
             except Exception as e:
                 logging.error(f"Помилка з каналом {channel}: {e}")
                 problematic_channels.add(channel)
 
-        logging.info("Перевірка каналів завершена. Очікування 5 хвилин...")
+        logging.info("Перевірка завершена. Очікування 5 хвилин...")
         await asyncio.sleep(300)
+
+# Завантаження попередніх хешів
+posted_hashes.update(load_hashes_from_s3())
 
 # Запуск бота
 async def main():
