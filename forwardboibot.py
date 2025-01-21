@@ -142,7 +142,7 @@ async def remove_filter(_, message):
 async def manual_trigger(_, message):
     await message.reply("Запускаємо перевірку каналів...")
     await check_channels()
-    await message.reply("Перевірка завершена."
+    await message.reply("Перевірка завершена.")
 
 # === Основна функція перевірки каналів ===
 async def check_channels():
