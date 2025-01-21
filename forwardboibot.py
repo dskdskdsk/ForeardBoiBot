@@ -198,4 +198,5 @@ async def main():
         check_channels_task.cancel()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    logging.info("Запуск бота...")
+    app.run(periodic_channel_check())
