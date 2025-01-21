@@ -250,6 +250,9 @@ async def get_info(_, message):
     )
     await message.reply(info_message)
 
+# Використовуємо єдиний список для каналів
+source_channels = []
+
 # Команда /addchannel
 @app.on_message(filters.private & filters.command("addchannel"))
 async def add_channel(_, message):
@@ -287,6 +290,16 @@ async def remove_channel(_, message):
     except Exception as e:
         logging.error(f"Помилка при видаленні каналу: {e}")
         await message.reply(f"Помилка: {e}")
+
+# Команда /list_channels
+@app.on_message(filters.command("list_channels") & filters.private)
+async def list_channels(client, message):
+    """Показує список каналів, які підключені до бота."""
+    if source_channels:
+        channels_list = "\n".join(source_channels)
+        await message.reply(f"Ваші канали:\n{channels_list}")
+    else:
+        await message.reply("У вас немає підключених каналів.")
 
 # Команда /hashinfo
 @app.on_message(filters.private & filters.command("hashinfo"))
