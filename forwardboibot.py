@@ -250,9 +250,6 @@ async def get_info(_, message):
     )
     await message.reply(info_message)
 
-# Використовуємо єдиний список для каналів
-source_channels = []
-
 # Команда /addchannel
 @app.on_message(filters.private & filters.command("addchannel"))
 async def add_channel(_, message):
