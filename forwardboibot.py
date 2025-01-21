@@ -6,23 +6,25 @@ import json
 import os
 import logging
 import boto3
-import datetime
 
-# Параметри вашого облікового запису Telegram
+# === Налаштування ===
+# Параметри вашого облікового запису
 api_id = "23390151"
 api_hash = "69d820891b50ddcdcb9abb473ecdfc32"
 session_name = "my_account"
 
-# Ініціалізація клієнта Telegram
-app = Client(session_name, api_id=api_id, api_hash=api_hash)
+# S3
+S3_BUCKET = "forwardboibot"
+S3_FILE_KEY = "posted_hashes.json"
+LOCAL_CACHE_FILE = "posted_hashes_cache.json"
 
 # Список джерел і цільовий канал
 source_channels = [
-    "@forwardboibottestchannel",  # Юзернейм або ID джерела
+    "@forwardboibottestchannel",
     "@OnlyOffshore",
     "@roster_marine"
 ]
-target_channel = "@thisisofshooore"  # Юзернейм або ID цільового каналу
+target_channel = "@thisisofshooore"
 
 # Початкові налаштування
 message_template = "Новий пост з каналу:\n\n{content}\n\n{hashtags}"
@@ -32,15 +34,7 @@ dynamic_hashtags = {
     "dp2": "#DP2",
     "offshore": "#AI"
 }
-
-# Останні перевірені повідомлення
-LAST_CHECKED_MESSAGES = {}
-
-# Зберігаємо фрази для фільтрації
 filters_list = ["general cargo"]
-
-# Унікальні хеші повідомлень (в межах однієї сесії)
-posted_hashes = set()
 
 # Логування
 logging.basicConfig(
@@ -48,119 +42,61 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-# S3 _____________________________________________________________________________________
+# Унікальні хеші повідомлень
+posted_hashes = set()
 
-S3_BUCKET_NAME = "forwardboibot"
-LOCAL_CACHE_DIR = "/tmp/cache"  # Локальна директорія для збереження файлів
+# Останні перевірені повідомлення
+LAST_CHECKED_MESSAGES = {}
 
-# Підключення до S3
-s3_client = boto3.client('s3')
-
-def get_monthly_file_name():
-    """Отримує назву файлу для поточного місяця."""
-    now = datetime.datetime.now()
-    return f"hashes_{now.year}_{now.month:02d}.json"
-
-def download_file_from_s3(file_name):
-    """Завантажує файл з S3, якщо він існує."""
-    local_path = os.path.join(LOCAL_CACHE_DIR, file_name)
-    os.makedirs(LOCAL_CACHE_DIR, exist_ok=True)
-    
-    try:
-        s3_client.download_file(S3_BUCKET_NAME, file_name, local_path)
-        print(f"Файл {file_name} завантажено з S3.")
-    except s3_client.exceptions.ClientError as e:
-        if e.response['Error']['Code'] == "404":
-            # Файл не знайдено, створюємо порожній локальний файл
-            with open(local_path, 'w') as f:
-                json.dump([], f)
-            print(f"Файл {file_name} не знайдено на S3. Створено новий локальний файл.")
-        else:
-            raise
-    return local_path
-
-def upload_file_to_s3(file_name):
-    """Завантажує файл на S3."""
-    local_path = os.path.join(LOCAL_CACHE_DIR, file_name)
-    s3_client.upload_file(local_path, S3_BUCKET_NAME, file_name)
-    print(f"Файл {file_name} завантажено на S3.")
-
-def read_hashes(file_name):
-    """Читає список хешів з локального файлу."""
-    local_path = os.path.join(LOCAL_CACHE_DIR, file_name)
-    with open(local_path, 'r') as f:
-        return json.load(f)
-
-def write_hashes(file_name, hashes):
-    """Записує список хешів у локальний файл."""
-    local_path = os.path.join(LOCAL_CACHE_DIR, file_name)
-    with open(local_path, 'w') as f:
-        json.dump(hashes, f)
-
-def add_hashes(new_hashes):
-    """Додає нові хеші до файлу за поточний місяць."""
-    if not new_hashes:
-        logging.info("Немає нових хешів для додавання.")
-        return
-    file_name = get_monthly_file_name()
-
-    # Завантажуємо файл з S3
-    local_file_path = download_file_from_s3(file_name)
-
-    # Читаємо існуючі хеші
-    existing_hashes = read_hashes(file_name)
-
-    # Додаємо тільки унікальні хеші
-    updated_hashes = list(set(existing_hashes + new_hashes))
-
-    # Записуємо оновлений список хешів
-    write_hashes(file_name, updated_hashes)
-
-    # Завантажуємо файл назад на S3
-    upload_file_to_s3(file_name)
-
-    print(f"Додано {len(new_hashes)} нових хешів. Загальна кількість: {len(updated_hashes)}")
-
+# === Функції роботи з S3 ===
 def load_hashes_from_s3():
-    """Завантажує попередні хеші з S3."""
-    file_name = get_monthly_file_name()
+    """Завантаження хешів із S3 або локального кешу."""
+    if os.path.exists(LOCAL_CACHE_FILE):
+        with open(LOCAL_CACHE_FILE, "r") as f:
+            return set(json.load(f))
+
+    s3 = boto3.client("s3")
     try:
-        local_file_path = download_file_from_s3(file_name)
-        return read_hashes(file_name)
+        response = s3.get_object(Bucket=S3_BUCKET, Key=S3_FILE_KEY)
+        hashes = json.loads(response['Body'].read().decode())
+        with open(LOCAL_CACHE_FILE, "w") as f:
+            json.dump(hashes, f)  # Зберігаємо локальну копію
+        return set(hashes)
+    except s3.exceptions.NoSuchKey:
+        return set()
     except Exception as e:
-        logging.error(f"Помилка завантаження хешів з S3: {e}")
-        return []
+        logging.error(f"Помилка при завантаженні хешів із S3: {e}")
+        return set()
 
+def update_hashes_in_s3(posted_hashes):
+    """Оновлення хешів у S3 із використанням тимчасового файлу."""
+    temp_file = "temp_hashes.json"
+    with open(temp_file, "w") as f:
+        json.dump(list(posted_hashes), f)
 
-# === Приклад використання ===
- 
-# Нові хеші для додавання
-new_hashes_to_add = ["hash1", "hash2", "hash3"]
+    s3 = boto3.client("s3")
+    try:
+        s3.upload_file(temp_file, S3_BUCKET, S3_FILE_KEY)
+        os.replace(temp_file, LOCAL_CACHE_FILE)  # Оновлюємо локальний кеш
+    except Exception as e:
+        logging.error(f"Помилка при оновленні хешів у S3: {e}")
 
-# Додаємо нові хеші в файл поточного місяця
-add_hashes(new_hashes_to_add)
-
-
-#Хеші ____________________________________________________________________________________
-# Функція створення хешу для тексту
+# === Допоміжні функції ===
 def generate_hash(text):
+    """Генерує хеш для тексту."""
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
-# Функція перевірки тексту на динамічні хештеги
-def get_dynamic_hashtags(text):
-    hashtags = []
-    for keyword, hashtag in dynamic_hashtags.items():
-        if re.search(rf'\b{keyword}\b', text, re.IGNORECASE):
-            hashtags.append(hashtag)
-    return hashtags
-
-# Функція для отримання хештегів із тексту
 def extract_existing_hashtags(text):
+    """Витягує всі хештеги з тексту."""
     return re.findall(r"#\w+", text)
 
-# Функція для видалення хештегів з тексту
 def remove_hashtags(text):
-    return re.sub(r'#\w+', '', text)
+    """Видаляє всі хештеги з тексту."""
+    return re.sub(r"#\w+", "", text)
+
+def get_dynamic_hashtags(text):
+    """Отримує динамічні хештеги на основі ключових слів."""
+    return [hashtag for keyword, hashtag in dynamic_hashtags.items() if re.search(rf'\b{keyword}\b', text, re.IGNORECASE)]
 
 # === Основна функція перевірки каналів ===
 async def check_channels():
@@ -207,127 +143,25 @@ async def check_channels():
                 # Оновлюємо останнє перевірене повідомлення для каналу
                 LAST_CHECKED_MESSAGES[channel] = message.id
 
-def update_hashes_in_s3(posted_hashes):
-    """Оновлює хеші в S3."""
-    if posted_hashes:
-        logging.info(f"Оновлюємо {len(posted_hashes)} хешів на S3.")
-        add_hashes(list(posted_hashes))
-    else:
-        logging.info("Немає нових хешів для оновлення на S3.")
+    update_hashes_in_s3(posted_hashes)
+    logging.info("Перевірка завершена. Засинаємо на 5 хвилин.")
+    await asyncio.sleep(300)
 
-# Команди для бота в Telegram _____________________________________________________________
- 
-# Команда /help
-@app.on_message(filters.private & filters.command("help"))
-async def help_command(_, message):
-    help_text = """
-Доступні команди:
-- /set_template {шаблон} — змінити шаблон для повідомлень.
-- /add_hashtag слово:хештег — додати динамічний хештег.
-- /remove_hashtag слово — видалити динамічний хештег.
-- /list_hashtags — показати список динамічних хештегів.
-- /show_template — показати поточний шаблон повідомлення.
-- /check — запустити перевірку каналів вручну.
-- /add_filter {фраза} — додати фразу для фільтрації.
-- /remove_filter {фраза} — видалити фразу з фільтрації.
-- /list_filters — показати список фраз для фільтрації.
-"""
-    await message.reply(help_text)
+# === Завантаження попередніх хешів ===
+posted_hashes = load_hashes_from_s3()
 
-# Команда /set_template
-@app.on_message(filters.private & filters.command("set_template"))
-async def set_template(_, message):
-    global message_template
-    new_template = message.text.split(" ", 1)[1] if len(message.text.split(" ", 1)) > 1 else None
-    if new_template:
-        message_template = new_template
-        await message.reply("Шаблон успішно оновлено.")
-    else:
-        await message.reply("Будь ласка, введіть новий шаблон після команди.")
-
-# Команда /add_hashtag
-@app.on_message(filters.private & filters.command("add_hashtag"))
-async def add_hashtag(_, message):
-    global dynamic_hashtags
-    data = message.text.split(" ", 1)[1] if len(message.text.split(" ", 1)) > 1 else None
-    if data and ":" in data:
-        keyword, hashtag = map(str.strip, data.split(":", 1))
-        dynamic_hashtags[keyword.lower()] = hashtag
-        await message.reply(f"Додано хештег: {keyword} → {hashtag}")
-    else:
-        await message.reply("Невірний формат. Використовуйте: /add_hashtag слово:хештег")
-
-# Команда /remove_hashtag
-@app.on_message(filters.private & filters.command("remove_hashtag"))
-async def remove_hashtag(_, message):
-    global dynamic_hashtags
-    keyword = message.text.split(" ", 1)[1].strip() if len(message.text.split(" ", 1)) > 1 else None
-    if keyword and keyword.lower() in dynamic_hashtags:
-        del dynamic_hashtags[keyword.lower()]
-        await message.reply(f"Хештег для '{keyword}' видалено.")
-    else:
-        await message.reply("Такого слова немає в списку динамічних хештегів.")
-
-# Команда /list_hashtags
-@app.on_message(filters.private & filters.command("list_hashtags"))
-async def list_hashtags(_, message):
-    if dynamic_hashtags:
-        hashtags_list = "\n".join([f"{k}: {v}" for k, v in dynamic_hashtags.items()])
-        await message.reply(f"Список динамічних хештегів:\n{hashtags_list}")
-    else:
-        await message.reply("Список динамічних хештегів порожній.")
-
-# Команда /show_template
-@app.on_message(filters.private & filters.command("show_template"))
-async def show_template(_, message):
-    await message.reply(f"Поточний шаблон повідомлення:\n{message_template}")
-
-# Команда /add_filter
-@app.on_message(filters.private & filters.command("add_filter"))
-async def add_filter(_, message):
-    global filters_list
-    phrase = " ".join(message.text.split()[1:])  # Отримуємо фразу без команди
-    if phrase and phrase not in filters_list:
-        filters_list.append(phrase)
-        await message.reply(f"Фразу '{phrase}' додано до фільтрів.")
-    else:
-        await message.reply(f"Фраза '{phrase}' вже є або не вказано тексту.")
-
-# Команда /remove_filter
-@app.on_message(filters.private & filters.command("remove_filter"))
-async def remove_filter(_, message):
-    global filters_list
-    phrase = " ".join(message.text.split()[1:])
-    if phrase in filters_list:
-        filters_list.remove(phrase)
-        await message.reply(f"Фразу '{phrase}' видалено з фільтрів.")
-    else:
-        await message.reply(f"Фраза '{phrase}' не знайдена у фільтрах.")
-
-# Команда /list_filters
-@app.on_message(filters.private & filters.command("list_filters"))
-async def list_filters(_, message):
-    if filters_list:
-        await message.reply(f"Ключові фрази для фільтрації:\n" + "\n".join(filters_list))
-    else:
-        await message.reply("Немає фраз для фільтрації.")
- 
-# Команда /check
+# === Запуск бота ===
 @app.on_message(filters.private & filters.command("check"))
 async def manual_trigger(_, message):
     await message.reply("Запускаємо перевірку каналів...")
     await check_channels()
     await message.reply("Перевірка завершена.")
 
-# Завантаження попередніх хешів
-posted_hashes.update(load_hashes_from_s3())
-
-# Запуск бота________________________________________________________________________
 async def main():
     async with app:
         logging.info("Бот запущений.")
-        while True:
-            await check_channels()
-            
-if __name__ == "main":
-    asyncio.run(main())  # Використовується asyncio для асинхронного 
+        await check_channels()
+
+if __name__ == "__main__":
+    app = Client(session_name, api_id=api_id, api_hash=api_hash)
+    app.run(main())
