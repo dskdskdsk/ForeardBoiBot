@@ -193,8 +193,8 @@ async def check_channels():
                 LAST_CHECKED_MESSAGES[channel] = message.id
 
     update_hashes_in_s3(posted_hashes)
-    logging.info("Перевірка завершена. Засинаємо на 5 хвилин.")
-    await asyncio.sleep(300)
+    logging.info("Перевірка завершена. Засинаємо на 6 годин.")
+    await asyncio.sleep(21600)
 
 # === Завантаження попередніх хешів ===
 posted_hashes = load_hashes_from_s3()
