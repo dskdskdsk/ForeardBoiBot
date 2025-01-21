@@ -101,7 +101,11 @@ def get_dynamic_hashtags(text):
 # === Створення об'єкта Client ===
 app = Client(session_name, api_id=api_id, api_hash=api_hash)
 
-# Команда /help
+# Логування команд в Telegram боті
+@app.on_message(filters.private & filters.command)
+async def log_commands(_, message):
+    logging.info(f"Отримана команда: {message.text}")
+
 @app.on_message(filters.private & filters.command("help"))
 async def help_command(_, message):
     help_text = """
@@ -117,6 +121,57 @@ async def help_command(_, message):
 - /list_filters — показати список фраз для фільтрації.
 """
     await message.reply(help_text)
+
+# Команда /set_template
+@app.on_message(filters.private & filters.command("set_template"))
+async def set_template(_, message):
+    global message_template
+    new_template = message.text[len("/set_template "):].strip()
+    if new_template:
+        message_template = new_template
+        await message.reply(f"Шаблон оновлено:\n\n{message_template}")
+    else:
+        await message.reply("Будь ласка, вкажіть новий шаблон після команди.")
+
+# Команда /add_hashtag
+@app.on_message(filters.private & filters.command("add_hashtag"))
+async def add_hashtag(_, message):
+    global dynamic_hashtags
+    try:
+        # Розділяємо за двокрапкою
+        keyword, hashtag = map(str.strip, message.text[len("/add_hashtag "):].split(":"))
+        if keyword and hashtag:
+            dynamic_hashtags[keyword] = hashtag
+            await message.reply(f"Додано динамічний хештег:\n'{keyword}' => '{hashtag}'")
+        else:
+            raise ValueError
+    except ValueError:
+        await message.reply("Неправильний формат. Використовуйте: /add_hashtag слово:хештег")
+
+# Команда /remove_hashtag
+@app.on_message(filters.private & filters.command("remove_hashtag"))
+async def remove_hashtag(_, message):
+    global dynamic_hashtags
+    keyword = message.text[len("/remove_hashtag "):].strip()
+    if keyword in dynamic_hashtags:
+        del dynamic_hashtags[keyword]
+        await message.reply(f"Хештег для '{keyword}' видалено.")
+    else:
+        await message.reply(f"Хештег для '{keyword}' не знайдено.")
+
+# Команда /list_hashtags
+@app.on_message(filters.private & filters.command("list_hashtags"))
+async def list_hashtags(_, message):
+    if dynamic_hashtags:
+        hashtags_list = "\n".join([f"{key}: {value}" for key, value in dynamic_hashtags.items()])
+        await message.reply(f"Список динамічних хештегів:\n{hashtags_list}")
+    else:
+        await message.reply("Список динамічних хештегів порожній.")
+
+# Команда /show_template
+@app.on_message(filters.private & filters.command("show_template"))
+async def show_template(_, message):
+    await message.reply(f"Поточний шаблон:\n\n{message_template}")
 
 # Команда /add_filter
 @app.on_message(filters.private & filters.command("add_filter"))
