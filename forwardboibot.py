@@ -131,16 +131,16 @@ def remove_hashtags(text):
     return re.sub(r'#\w+', '', text)
 
 # Функція отримання історії з повторними спробами
-async def get_chat_history_with_retries(client, channel, retries=5, delay=5):
-    for attempt in range(retries):
+async def fetch_channel_history(client, channel_username, retries=5, delay=5):
+    for attempt in range(1, retries + 1):
         try:
-            return await client.get_chat_history(channel, limit=10)
+            history = await client.get_chat_history(channel_username, limit=10)
+            logging.info(f"Отримано {len(history)} повідомлень з каналу {channel_username}")
+            return history
         except Exception as e:
-            if attempt < retries - 1:
-                logging.warning(f"Помилка отримання історії {channel}. Спроба {attempt + 1} з {retries}. Причина: {e}")
-                await asyncio.sleep(delay)
-            else:
-                logging.error(f"Не вдалося отримати історію {channel} після {retries} спроб. Причина: {e}")
+            logging.warning(f"Помилка отримання історії {channel_username}. Спроба {attempt} з {retries}. Причина: {e}")
+            if attempt == retries:
+                logging.error(f"Не вдалося отримати історію {channel_username} після {retries} спроб.")
                 raise
 
 # Основна функція перевірки каналів
@@ -155,7 +155,8 @@ async def periodic_channel_check():
                 logging.warning(f"Пропущено канал {channel} через попередні помилки.")
                 continue
             try:
-                async for message in await get_chat_history_with_retries(app, channel):
+                messages = await fetch_channel_history(app, channel)
+                for message in messages:
                     if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
                         if message.text and not message.media and not re.search(r'http[s]?://', message.text):
                             post_hash = generate_hash(message.text)
