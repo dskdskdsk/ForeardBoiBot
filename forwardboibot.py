@@ -98,6 +98,52 @@ def get_dynamic_hashtags(text):
     """Отримує динамічні хештеги на основі ключових слів."""
     return [hashtag for keyword, hashtag in dynamic_hashtags.items() if re.search(rf'\b{keyword}\b', text, re.IGNORECASE)]
 
+# Команда /help
+@app.on_message(filters.private & filters.command("help"))
+async def help_command(_, message):
+    help_text = """
+Доступні команди:
+- /set_template {шаблон} — змінити шаблон для повідомлень.
+- /add_hashtag слово:хештег — додати динамічний хештег.
+- /remove_hashtag слово — видалити динамічний хештег.
+- /list_hashtags — показати список динамічних хештегів.
+- /show_template — показати поточний шаблон повідомлення.
+- /check — запустити перевірку каналів вручну.
+- /add_filter {фраза} — додати фразу для фільтрації.
+- /remove_filter {фраза} — видалити фразу з фільтрації.
+- /list_filters — показати список фраз для фільтрації.
+"""
+    await message.reply(help_text)
+
+# Команда /add_filter
+@app.on_message(filters.private & filters.command("add_filter"))
+async def add_filter(_, message):
+    global filters_list
+    phrase = " ".join(message.text.split()[1:])  # Отримуємо фразу без команди
+    if phrase and phrase not in filters_list:
+        filters_list.append(phrase)
+        await message.reply(f"Фразу '{phrase}' додано до фільтрів.")
+    else:
+        await message.reply(f"Фраза '{phrase}' вже є або не вказано тексту.")
+
+# Команда /remove_filter
+@app.on_message(filters.private & filters.command("remove_filter"))
+async def remove_filter(_, message):
+    global filters_list
+    phrase = " ".join(message.text.split()[1:])
+    if phrase in filters_list:
+        filters_list.remove(phrase)
+        await message.reply(f"Фразу '{phrase}' видалено з фільтрів.")
+    else:
+        await message.reply(f"Фраза '{phrase}' не знайдена у фільтрах.")
+
+# Команда /check
+@app.on_message(filters.private & filters.command("check"))
+async def manual_trigger(_, message):
+    await message.reply("Запускаємо перевірку каналів...")
+    await check_channels()
+    await message.reply("Перевірка завершена."
+
 # === Основна функція перевірки каналів ===
 async def check_channels():
     global posted_hashes
