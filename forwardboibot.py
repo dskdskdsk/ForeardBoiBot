@@ -427,7 +427,7 @@ async def check_channels():
     global posted_hashes
     for channel in source_channels:
         logging.info(f"Перевірка каналу: {channel}")  # Лог для кожного каналу
-        async for message in app.get_chat_history(channel, limit=10):
+        async for message in app.get_chat_history(channel, limit=25):
             logging.info(f"Перевірка повідомлення з каналу {channel}, ID {message.id}")  # Лог для кожного повідомлення
             if channel not in LAST_CHECKED_MESSAGES or message.id > LAST_CHECKED_MESSAGES[channel]:
                 if message.text and not message.media and not re.search(r'http[s]?://', message.text):
