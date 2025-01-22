@@ -17,6 +17,7 @@ session_name = "my_account"
 S3_BUCKET = "forwardboibot"
 TEMPLATE_FILE_KEY = "template.txt"
 FILTERS_FILE_KEY = "filters_list.json"
+HASHTAGS_FILE_KEY = "dynamic_hashtags.json"
 S3_FILE_KEY = "posted_hashes.json"
 LOCAL_CACHE_FILE = "posted_hashes_cache.json"
 
@@ -140,6 +141,33 @@ def load_filters_from_s3():
 # === Ініціалізація фільтрів ===
 filters_list = load_filters_from_s3()
 
+# Функція для збереження динамічних хештегів у S3
+def save_hashtags_to_s3():
+    """Зберігає динамічні хештеги у S3."""
+    s3 = boto3.client("s3")
+    try:
+        s3.put_object(Bucket=S3_BUCKET, Key=HASHTAGS_FILE_KEY, Body=json.dumps(dynamic_hashtags))
+        logging.info("Динамічні хештеги успішно збережено у S3.")
+    except Exception as e:
+        logging.error(f"Помилка при збереженні хештегів у S3: {e}")
+
+# Функція для завантаження динамічних хештегів із S3
+def load_hashtags_from_s3():
+    """Завантажує динамічні хештеги з S3 або повертає порожній словник."""
+    s3 = boto3.client("s3")
+    try:
+        response = s3.get_object(Bucket=S3_BUCKET, Key=HASHTAGS_FILE_KEY)
+        return json.loads(response['Body'].read().decode())
+    except s3.exceptions.NoSuchKey:
+        logging.warning("Динамічні хештеги не знайдені у S3, використовується стандартний.")
+        return {}
+    except Exception as e:
+        logging.error(f"Помилка при завантаженні хештегів із S3: {e}")
+        return {}
+
+# === Ініціалізація динамічних хештегів ===
+dynamic_hashtags = load_hashtags_from_s3()
+
 # === Допоміжні функції ===
 def generate_hash(text):
     """Генерує хеш для тексту."""
@@ -218,6 +246,7 @@ async def add_hashtag(_, message):
         keyword, hashtag = map(str.strip, message.text[len("/add_hashtag "):].split(":"))
         if keyword and hashtag:
             dynamic_hashtags[keyword] = hashtag
+            save_hashtags_to_s3()  # Зберігаємо оновлені хештеги у S3
             logging.info(f"Додано динамічний хештег: '{keyword}' => '{hashtag}'")
             await message.reply(f"Додано динамічний хештег:\n'{keyword}' => '{hashtag}'")
         else:
@@ -233,12 +262,13 @@ async def remove_hashtag(_, message):
     keyword = message.text[len("/remove_hashtag "):].strip()
     if keyword in dynamic_hashtags:
         del dynamic_hashtags[keyword]
+        save_hashtags_to_s3()  # Оновлюємо хештеги в S3
         logging.info(f"Хештег для '{keyword}' видалено.")
         await message.reply(f"Хештег для '{keyword}' видалено.")
     else:
         await message.reply(f"Хештег для '{keyword}' не знайдено.")
 
-# Команда /list_hashtag
+# Команда /list_hashtags
 @app.on_message(filters.private & filters.command("list_hashtags"))
 async def list_hashtags(_, message):
     """Показує список динамічних хештегів."""
