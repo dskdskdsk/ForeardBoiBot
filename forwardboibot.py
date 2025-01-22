@@ -30,11 +30,15 @@ target_channel = "@thisisofshooore"
 
 # Початкові налаштування
 message_template = "Новий пост з каналу:\n\n{content}\n\n{hashtags}"
-permanent_hashtags = ["#Новини", "#Telegram"]
+permanent_hashtags = ["#Offshore", "#JobOffer", "#NewVacancy"]
 dynamic_hashtags = {
-    "Chief mate": "#Python",
+    "Chief mate": "#ChiefMate",
     "dp2": "#DP2",
-    "offshore": "#AI"
+    "dp-2": "#DP2"
+    "DP2": "#DP2"
+    "DP-2": "#DP2"
+    "DP 2": "#DP2"
+    "offshore": "#Offshore"
 }
 filters_list = ["general cargo"]
 
