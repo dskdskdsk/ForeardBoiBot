@@ -15,6 +15,7 @@ session_name = "my_account"
 
 # S3
 S3_BUCKET = "forwardboibot"
+TEMPLATE_FILE_KEY = "template.txt"
 S3_FILE_KEY = "posted_hashes.json"
 LOCAL_CACHE_FILE = "posted_hashes_cache.json"
 
@@ -81,6 +82,32 @@ def update_hashes_in_s3(posted_hashes):
     except Exception as e:
         logging.error(f"Помилка при оновленні хешів у S3: {e}")
 
+# === Функції роботи з S3 з шаблоном===
+def save_template_to_s3(template):
+    """Зберігає шаблон у S3."""
+    s3 = boto3.client("s3")
+    try:
+        s3.put_object(Bucket=S3_BUCKET, Key=TEMPLATE_FILE_KEY, Body=template)
+        logging.info("Шаблон успішно збережено у S3.")
+    except Exception as e:
+        logging.error(f"Помилка при збереженні шаблону у S3: {e}")
+
+def load_template_from_s3():
+    """Завантажує шаблон із S3."""
+    s3 = boto3.client("s3")
+    try:
+        response = s3.get_object(Bucket=S3_BUCKET, Key=TEMPLATE_FILE_KEY)
+        return response['Body'].read().decode()
+    except s3.exceptions.NoSuchKey:
+        logging.warning("Шаблон не знайдено у S3, використовується стандартний.")
+        return "Новий пост з каналу:\n\n{content}\n\n{hashtags}"
+    except Exception as e:
+        logging.error(f"Помилка при завантаженні шаблону з S3: {e}")
+        return "Новий пост з каналу:\n\n{content}\n\n{hashtags}"
+
+# === Ініціалізація шаблону ===
+message_template = load_template_from_s3()
+
 # === Допоміжні функції ===
 def generate_hash(text):
     """Генерує хеш для тексту."""
@@ -139,11 +166,12 @@ async def show_template(_, message):
 # Команда /set_template
 @app.on_message(filters.private & filters.command("set_template"))
 async def set_template(_, message):
-    """Змінює шаблон для повідомлень."""
+    """Змінює шаблон для повідомлень і зберігає його в S3."""
     global message_template
     new_template = message.text[len("/set_template "):].strip()
     if new_template:
         message_template = new_template
+        save_template_to_s3(message_template)
         logging.info(f"Шаблон оновлено на: {message_template}")
         await message.reply(f"Шаблон оновлено:\n\n{message_template}")
     else:
