@@ -16,6 +16,7 @@ session_name = "my_account"
 # S3
 S3_BUCKET = "forwardboibot"
 TEMPLATE_FILE_KEY = "template.txt"
+FILTERS_FILE_KEY = "filters_list.json"
 S3_FILE_KEY = "posted_hashes.json"
 LOCAL_CACHE_FILE = "posted_hashes_cache.json"
 
@@ -82,7 +83,7 @@ def update_hashes_in_s3(posted_hashes):
     except Exception as e:
         logging.error(f"Помилка при оновленні хешів у S3: {e}")
 
-# === Функції роботи з S3 з шаблоном===
+# === Функції роботи з S3 з шаблоном ===
 def save_template_to_s3(template):
     """Зберігає шаблон у S3."""
     s3 = boto3.client("s3")
@@ -107,6 +108,33 @@ def load_template_from_s3():
 
 # === Ініціалізація шаблону ===
 message_template = load_template_from_s3()
+
+# Функція для збереження фільтрів у S3
+def save_filters_to_s3(filters_list):
+    """Зберігає список фільтрів у S3."""
+    s3 = boto3.client("s3")
+    try:
+        s3.put_object(Bucket=S3_BUCKET, Key=FILTERS_FILE_KEY, Body=json.dumps(filters_list))
+        logging.info("Список фільтрів успішно збережено у S3.")
+    except Exception as e:
+        logging.error(f"Помилка при збереженні фільтрів у S3: {e}")
+
+# Функція для завантаження фільтрів із S3
+def load_filters_from_s3():
+    """Завантажує список фільтрів із S3 або повертає порожній список."""
+    s3 = boto3.client("s3")
+    try:
+        response = s3.get_object(Bucket=S3_BUCKET, Key=FILTERS_FILE_KEY)
+        return json.loads(response['Body'].read().decode())
+    except s3.exceptions.NoSuchKey:
+        logging.warning("Список фільтрів не знайдено у S3, використовується стандартний.")
+        return []
+    except Exception as e:
+        logging.error(f"Помилка при завантаженні фільтрів із S3: {e}")
+        return []
+
+# === Ініціалізація фільтрів ===
+filters_list = load_filters_from_s3()
 
 # === Допоміжні функції ===
 def generate_hash(text):
@@ -225,11 +253,12 @@ async def add_filter(_, message):
     phrase = message.text[len("/add_filter "):].strip()
     if phrase and phrase not in filters_list:
         filters_list.append(phrase)
+        save_filters_to_s3(filters_list)  # Зберігаємо у S3
         logging.info(f"Фразу '{phrase}' додано до фільтрів.")
         await message.reply(f"Фразу '{phrase}' додано до фільтрів.")
     else:
         await message.reply(f"Фраза '{phrase}' вже є або не вказано тексту.")
-
+        
 # Команда /remove_filter
 @app.on_message(filters.private & filters.command("remove_filter"))
 async def remove_filter(_, message):
@@ -238,11 +267,12 @@ async def remove_filter(_, message):
     phrase = message.text[len("/remove_filter "):].strip()
     if phrase in filters_list:
         filters_list.remove(phrase)
+        save_filters_to_s3(filters_list)  # Оновлюємо S3
         logging.info(f"Фразу '{phrase}' видалено з фільтрів.")
         await message.reply(f"Фразу '{phrase}' видалено з фільтрів.")
     else:
         await message.reply(f"Фраза '{phrase}' не знайдена у фільтрах.")
-
+        
 # Команда /list_filters
 @app.on_message(filters.private & filters.command("list_filters"))
 async def list_filters(_, message):
@@ -253,7 +283,7 @@ async def list_filters(_, message):
         await message.reply(f"Список фраз для фільтрації:\n{filters_text}")
     else:
         await message.reply("Список фільтрів порожній.")
-
+        
 # Команда /check
 @app.on_message(filters.private & filters.command("check"))
 async def manual_trigger(_, message):
