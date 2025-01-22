@@ -35,10 +35,10 @@ permanent_hashtags = ["#Offshore", "#JobOffer", "#NewVacancy"]
 dynamic_hashtags = {
     "Chief mate": "#ChiefMate",
     "dp2": "#DP2",
-    "dp-2": "#DP2"
-    "DP2": "#DP2"
-    "DP-2": "#DP2"
-    "DP 2": "#DP2"
+    "dp-2": "#DP2",
+    "DP2": "#DP2",
+    "DP-2": "#DP2",
+    "DP 2": "#DP2",
     "offshore": "#Offshore"
 }
 filters_list = ["general cargo"]
