@@ -430,7 +430,7 @@ async def check_channels():
         logging.info(f"Перевірка каналу: {channel}")  # Лог для кожного каналу
         try:
             # Асинхронно отримуємо історію чату, обмежену кількістю останніх 25 повідомлень
-            async for message in app.get_chat_history(channel, limit=25):
+            async for message in app.get_chat_history(channel, limit=100):
                 logging.info(f"Перевірка повідомлення з каналу {channel}, ID {message.id}")  # Лог для кожного повідомлення
 
                 # Якщо повідомлення вже перевірене, пропускаємо його
@@ -477,8 +477,8 @@ async def check_channels():
             logging.error(f"Error checking channel {channel}: {e}")
 
     update_hashes_in_s3(posted_hashes)
-    logging.info("Перевірка завершена. Засинаємо на 6 годин.")
-    await asyncio.sleep(21600)
+    logging.info("Перевірка завершена. Засинаємо на годину.")
+    await asyncio.sleep(3600)
     
 # === Завантаження попередніх хешів ===
 posted_hashes = load_hashes_from_s3()
