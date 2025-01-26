@@ -427,9 +427,12 @@ async def check_channels():
     global posted_hashes, LAST_CHECKED_MESSAGES
     for channel in source_channels:
         logging.info(f"Перевірка каналу: {channel}")  # Лог для кожного каналу
-        async for message in app.get_chat_history(channel, reverse=True):  # Використовуємо reverse=True для перевірки старих повідомлень
+        # Отримуємо історію чату, обмежену кількістю останніх 25 повідомлень
+        messages = await app.get_chat_history(channel, limit=25)
+        # Перевіряємо кожне повідомлення
+        for message in reversed(messages):  # Перевірка в зворотньому порядку
             logging.info(f"Перевірка повідомлення з каналу {channel}, ID {message.id}")  # Лог для кожного повідомлення
-            
+
             # Якщо повідомлення вже перевірене, пропускаємо його
             if channel in LAST_CHECKED_MESSAGES and message.id <= LAST_CHECKED_MESSAGES[channel]:
                 continue
@@ -474,8 +477,7 @@ async def check_channels():
     update_hashes_in_s3(posted_hashes)
     logging.info("Перевірка завершена. Засинаємо на 6 годин.")
     await asyncio.sleep(21600)
-
-
+    
 # === Завантаження попередніх хешів ===
 posted_hashes = load_hashes_from_s3()
 
