@@ -25,7 +25,8 @@ LOCAL_CACHE_FILE = "posted_hashes_cache.json"
 source_channels = [
     "@forwardboibottestchannel",
     "@OnlyOffshore",
-    "@roster_marine"
+    "@roster_marine",
+    "@offshoreatsea"
 ]
 target_channel = "@thisisofshooore"
 
