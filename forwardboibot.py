@@ -427,52 +427,53 @@ async def check_channels():
     global posted_hashes, LAST_CHECKED_MESSAGES
     for channel in source_channels:
         logging.info(f"Перевірка каналу: {channel}")  # Лог для кожного каналу
-        # Отримуємо історію чату, обмежену кількістю останніх 25 повідомлень
-        messages = await app.get_chat_history(channel, limit=25)
-        # Перевіряємо кожне повідомлення
-        for message in reversed(messages):  # Перевірка в зворотньому порядку
-            logging.info(f"Перевірка повідомлення з каналу {channel}, ID {message.id}")  # Лог для кожного повідомлення
+        try:
+            # Асинхронно отримуємо історію чату, обмежену кількістю останніх 25 повідомлень
+            async for message in app.get_chat_history(channel, limit=25):
+                logging.info(f"Перевірка повідомлення з каналу {channel}, ID {message.id}")  # Лог для кожного повідомлення
 
-            # Якщо повідомлення вже перевірене, пропускаємо його
-            if channel in LAST_CHECKED_MESSAGES and message.id <= LAST_CHECKED_MESSAGES[channel]:
-                continue
-
-            if message.text and not message.media and not re.search(r'http[s]?://', message.text):
-                post_hash = generate_hash(message.text)
-                if post_hash in posted_hashes:
-                    logging.info(f"Цей пост із ID {message.id} вже оброблений.")
+                # Якщо повідомлення вже перевірене, пропускаємо його
+                if channel in LAST_CHECKED_MESSAGES and message.id <= LAST_CHECKED_MESSAGES[channel]:
                     continue
 
-                # Перевірка на заборонені фрази
-                if any(phrase.lower() in message.text.lower() for phrase in filters_list):
-                    logging.info(f"Пост із ID {message.id} містить заборонені фрази.")
-                    continue
+                if message.text and not message.media and not re.search(r'http[s]?://', message.text):
+                    post_hash = generate_hash(message.text)
+                    if post_hash in posted_hashes:
+                        logging.info(f"Цей пост із ID {message.id} вже оброблений.")
+                        continue
 
-                original_text = message.text
+                    # Перевірка на заборонені фрази
+                    if any(phrase.lower() in message.text.lower() for phrase in filters_list):
+                        logging.info(f"Пост із ID {message.id} містить заборонені фрази.")
+                        continue
 
-                # Витягуємо існуючі хештеги та видаляємо їх з тексту
-                existing_hashtags = extract_existing_hashtags(original_text)
-                cleaned_text = remove_hashtags(original_text)
+                    original_text = message.text
 
-                # Формуємо список унікальних хештегів
-                unique_hashtags = set(existing_hashtags + permanent_hashtags)
-                dynamic_tags = get_dynamic_hashtags(cleaned_text)
-                unique_hashtags.update(dynamic_tags)
+                    # Витягуємо існуючі хештеги та видаляємо їх з тексту
+                    existing_hashtags = extract_existing_hashtags(original_text)
+                    cleaned_text = remove_hashtags(original_text)
 
-                # Формуємо кінцевий текст
-                formatted_message = message_template.format(
-                    content=cleaned_text.strip(),
-                    hashtags=" ".join(unique_hashtags)
-                )
+                    # Формуємо список унікальних хештегів
+                    unique_hashtags = set(existing_hashtags + permanent_hashtags)
+                    dynamic_tags = get_dynamic_hashtags(cleaned_text)
+                    unique_hashtags.update(dynamic_tags)
 
-                # Надсилаємо повідомлення
-                await app.send_message(target_channel, formatted_message)
+                    # Формуємо кінцевий текст
+                    formatted_message = message_template.format(
+                        content=cleaned_text.strip(),
+                        hashtags=" ".join(unique_hashtags)
+                    )
 
-                # Зберігаємо хеш поста, щоб уникнути дублювання
-                posted_hashes.add(post_hash)
+                    # Надсилаємо повідомлення
+                    await app.send_message(target_channel, formatted_message)
 
-            # Оновлюємо останнє перевірене повідомлення для каналу
-            LAST_CHECKED_MESSAGES[channel] = message.id
+                    # Зберігаємо хеш поста, щоб уникнути дублювання
+                    posted_hashes.add(post_hash)
+
+                # Оновлюємо останнє перевірене повідомлення для каналу
+                LAST_CHECKED_MESSAGES[channel] = message.id
+        except Exception as e:
+            logging.error(f"Error checking channel {channel}: {e}")
 
     update_hashes_in_s3(posted_hashes)
     logging.info("Перевірка завершена. Засинаємо на 6 годин.")
