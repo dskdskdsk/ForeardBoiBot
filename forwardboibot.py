@@ -424,16 +424,36 @@ async def start_command(_, message):
     await message.reply(start_text)
 
 # === Основна функція перевірки каналів ===
+
+from datetime import datetime, timedelta
+
 async def check_channels():
     global posted_hashes, LAST_CHECKED_MESSAGES
+
+    # Завантажуємо хеші з S3 перед перевіркою
+    posted_hashes = load_hashes_from_s3()
 
     for channel in source_channels:
         logging.info(f"Початок перевірки каналу: {channel}")
         
-        # Якщо для каналу немає запису про останнє повідомлення, ініціалізуємо його як 0
+        # Якщо для каналу немає запису про останнє перевірене повідомлення, ініціалізуємо його як 0
         if channel not in LAST_CHECKED_MESSAGES:
             LAST_CHECKED_MESSAGES[channel] = 0
             logging.info(f"Ініціалізовано LAST_CHECKED_MESSAGES для каналу {channel} як 0")
+
+        # Отримуємо поточний час для визначення, коли здійснюватиметься наступна перевірка
+        current_time = datetime.now()
+
+        # Якщо час для перевірки ще не настав, пропускаємо перевірку
+        if channel in LAST_CHECKED_MESSAGES and LAST_CHECKED_MESSAGES[channel]:
+            last_checked_time = datetime.fromtimestamp(LAST_CHECKED_MESSAGES[channel])
+
+            # Припустимо, перевірка відбувається кожні 5 хвилин
+            next_check_time = last_checked_time + timedelta(minutes=5)
+
+            if current_time < next_check_time:
+                logging.info(f"Наступна перевірка каналу {channel} відбудеться о {next_check_time}")
+                continue  # Пропускаємо перевірку цього каналу
 
         # Отримуємо всі повідомлення, сортуємо їх у порядку зростання ID (від найстаріших)
         messages = []
@@ -445,15 +465,19 @@ async def check_channels():
         for message in messages:
             logging.info(f"Отримано повідомлення з каналу {channel}, ID: {message.id}")
 
-            # Перевірка: чи було це повідомлення вже оброблено
+            # Оновлюємо останнє перевірене повідомлення незалежно від дій
+            LAST_CHECKED_MESSAGES[channel] = max(LAST_CHECKED_MESSAGES[channel], message.id)
+
+            # Пропускаємо вже перевірені повідомлення
             if message.id <= LAST_CHECKED_MESSAGES[channel]:
                 logging.info(f"Пропущено повідомлення з ID {message.id}, воно вже перевірене")
                 continue
 
             if message.text and not message.media and not re.search(r'http[s]?://', message.text):
                 post_hash = generate_hash(message.text)
+
                 if post_hash in posted_hashes:
-                    logging.info(f"Повідомлення з ID {message.id} вже має хеш в базі")
+                    logging.info(f"Повідомлення з ID {message.id} вже оброблено")
                     continue
 
                 # Перевірка на заборонені фрази
@@ -486,14 +510,16 @@ async def check_channels():
                 posted_hashes.add(post_hash)
                 logging.info(f"Хеш для ID {message.id} додано до бази")
 
-            # Оновлюємо останнє перевірене повідомлення для каналу
-            LAST_CHECKED_MESSAGES[channel] = message.id
-            logging.info(f"Оновлено LAST_CHECKED_MESSAGES для каналу {channel}: {message.id}")
+        # Оновлюємо останнє перевірене повідомлення для каналу
+        LAST_CHECKED_MESSAGES[channel] = max(LAST_CHECKED_MESSAGES[channel], message.id)
+        logging.info(f"Оновлено LAST_CHECKED_MESSAGES для каналу {channel}: {message.id}")
 
-    # Зберігаємо хеші в S3
+    # Оновлюємо хеші в S3 після обробки всіх каналів
     update_hashes_in_s3(posted_hashes)
     logging.info("Перевірка завершена. Засинаємо на 6 годин.")
-    await asyncio.sleep(3600)
+    
+    # Затримка на 6 годин перед наступною перевіркою
+    await asyncio.sleep(21600)  # 6 годин в секундах
     
 # === Завантаження попередніх хешів ===
 posted_hashes = load_hashes_from_s3()
