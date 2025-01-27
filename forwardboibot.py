@@ -422,6 +422,8 @@ async def start_command(_, message):
 
 # === Основна функція перевірки каналів ===
 
+# === Основна функція перевірки каналів ===
+
 async def check_channel(channel):
     try:
         # Перевірка підключення до каналу
@@ -465,32 +467,33 @@ async def check_channel(channel):
         if message.text and not message.media and not re.search(r'http[s]?://', message.text):
             post_hash = generate_hash(message.text)
 
-    if post_hash in posted_hashes:
-        logging.info(f"Повідомлення з ID {message.id} вже оброблено")
-        continue
+            if post_hash in posted_hashes:
+                logging.info(f"Повідомлення з ID {message.id} вже оброблено")
+                continue
 
-    # Фільтрація
-    if any(phrase.lower() in message.text.lower() for phrase in filters_list):
-        logging.info(f"Повідомлення з ID {message.id} містить заборонені фрази")
-        continue
+            # Фільтрація
+            if any(phrase.lower() in message.text.lower() for phrase in filters_list):
+                logging.info(f"Повідомлення з ID {message.id} містить заборонені фрази")
+                continue
 
-    # Формування і відправка повідомлення
-    original_text = message.text
-    existing_hashtags = extract_existing_hashtags(original_text)
-    cleaned_text = remove_hashtags(original_text)
-    unique_hashtags = set(existing_hashtags + permanent_hashtags)
-    dynamic_tags = get_dynamic_hashtags(cleaned_text)
-    unique_hashtags.update(dynamic_tags)
+            # Формування і відправка повідомлення
+            original_text = message.text
+            existing_hashtags = extract_existing_hashtags(original_text)
+            cleaned_text = remove_hashtags(original_text)
+            unique_hashtags = set(existing_hashtags + permanent_hashtags)
+            dynamic_tags = get_dynamic_hashtags(cleaned_text)
+            unique_hashtags.update(dynamic_tags)
 
-    formatted_message = message_template.format(
-        content=cleaned_text.strip(),
-        hashtags=" ".join(unique_hashtags)
-    )
+            formatted_message = message_template.format(
+                content=cleaned_text.strip(),
+                hashtags=" ".join(unique_hashtags)
+            )
 
-    logging.info(f"Повідомлення з ID {message.id} відправляється в канал {target_channel}")
-    await app.send_message(target_channel, formatted_message)
-    posted_hashes.add(post_hash)
-    logging.info(f"Повідомлення з ID {message.id} відправлено")
+            logging.info(f"Повідомлення з ID {message.id} відправляється в канал {target_channel}")
+            await app.send_message(target_channel, formatted_message)
+            posted_hashes.add(post_hash)
+            logging.info(f"Повідомлення з ID {message.id} відправлено")
+
     # Оновлюємо хеші в S3 після обробки всіх каналів
     update_hashes_in_s3(posted_hashes)
     logging.info("Усі хеші оновлено в S3.")
