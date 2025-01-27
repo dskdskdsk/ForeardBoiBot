@@ -430,7 +430,7 @@ async def check_channels():
         logging.info(f"Перевірка каналу: {channel}")  # Лог для кожного каналу
         try:
             # Асинхронно отримуємо історію чату, обмежену кількістю останніх 25 повідомлень
-            async for message in app.get_chat_history(channel, limit=100):
+            async for message in app.get_chat_history(channel, limit=300):
                 logging.info(f"Перевірка повідомлення з каналу {channel}, ID {message.id}")  # Лог для кожного повідомлення
 
                 # Якщо повідомлення вже перевірене, пропускаємо його
