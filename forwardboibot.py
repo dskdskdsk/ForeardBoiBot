@@ -421,8 +421,7 @@ async def start_command(_, message):
     await message.reply(start_text)
 
 # === Основна функція перевірки каналів ===
-
-async def check_channels(channel):
+async def check_channels(channel, posted_hashes):
     try:
         # Перевірка підключення до каналу
         await app.get_chat(channel)
@@ -444,9 +443,6 @@ async def check_channels(channel):
     # Якщо повідомлення не знайдені
     if not messages:
         logging.warning(f"Не вдалося отримати повідомлення з каналу {channel}")
-
-    # Завантажуємо хеші з S3 перед перевіркою
-    posted_hashes = load_hashes_from_s3()
 
     # Останні перевірені повідомлення
     LAST_CHECKED_MESSAGES = {}
@@ -492,22 +488,27 @@ async def check_channels(channel):
             posted_hashes.add(post_hash)
             logging.info(f"Повідомлення з ID {message.id} відправлено")
 
-    # Оновлюємо хеші в S3 після обробки всіх каналів
-    update_hashes_in_s3(posted_hashes)
-    logging.info("Усі хеші оновлено в S3.")
-
-    # Засинаємо на годину перед наступною перевіркою
-    logging.info("Перевірка завершена. Засинаємо на годину.")
-    await asyncio.sleep(3600)
-    
-# === Завантаження попередніх хешів ===
-posted_hashes = load_hashes_from_s3()
+    logging.info("Перевірка каналу завершена.")
 
 # === Запуск бота ===
 async def main():
     async with app:
         logging.info("Бот запущений.")
-        await check_channels()
+
+        # Завантажуємо хеші з S3 перед початком роботи
+        posted_hashes = load_hashes_from_s3()
+
+        while True:  # Бот працює в нескінченному циклі
+            for channel in source_channels:
+                await check_channels(channel, posted_hashes)
+
+            # Оновлюємо хеші в S3 після кожного циклу
+            update_hashes_in_s3(posted_hashes)
+            logging.info("Усі хеші оновлено в S3.")
+
+            # Засинаємо на годину перед наступною перевіркою
+            logging.info("Перевірка завершена. Засинаємо на годину.")
+            await asyncio.sleep(3600)  # Очікуємо годину перед наступним циклом
 
 if __name__ == "__main__":
     app.run(main())
