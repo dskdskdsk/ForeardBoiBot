@@ -435,7 +435,14 @@ async def check_channels():
             LAST_CHECKED_MESSAGES[channel] = 0
             logging.info(f"Ініціалізовано LAST_CHECKED_MESSAGES для каналу {channel} як 0")
 
-        async for message in app.get_chat_history(channel, limit=200, reverse=True):  # Починаємо з найстаріших
+        # Отримуємо всі повідомлення, сортуємо їх у порядку зростання ID (від найстаріших)
+        messages = []
+        async for message in app.get_chat_history(channel, limit=200):
+            messages.append(message)
+        
+        messages = sorted(messages, key=lambda x: x.id)  # Сортуємо повідомлення у порядку зростання ID
+
+        for message in messages:
             logging.info(f"Отримано повідомлення з каналу {channel}, ID: {message.id}")
 
             # Перевірка: чи було це повідомлення вже оброблено
@@ -485,7 +492,7 @@ async def check_channels():
 
     # Зберігаємо хеші в S3
     update_hashes_in_s3(posted_hashes)
-    logging.info("Перевірка завершена. Засинаємо на годину.")
+    logging.info("Перевірка завершена. Засинаємо на 6 годин.")
     await asyncio.sleep(3600)
     
 # === Завантаження попередніх хешів ===
