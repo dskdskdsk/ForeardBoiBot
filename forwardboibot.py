@@ -422,7 +422,7 @@ async def start_command(_, message):
 
 # === Основна функція перевірки каналів ===
 
-async def check_channel(channel):
+async def check_channels(channel):
     try:
         # Перевірка підключення до каналу
         await app.get_chat(channel)
@@ -507,7 +507,7 @@ posted_hashes = load_hashes_from_s3()
 async def main():
     async with app:
         logging.info("Бот запущений.")
-        await check_channel()
+        await check_channels()
 
 if __name__ == "__main__":
     app.run(main())
