@@ -25,13 +25,16 @@ LOCAL_CACHE_FILE = "posted_hashes_cache.json"
 source_channels = [
     "@forwardboibottestchannel",
     "@OnlyOffshore",
-    "@roster_marine"
+    "@roster_marine",
+    "@jobatsealive"
+    "@offshoreatsea",
+    "@shipscreweu"
 ]
 target_channel = "@thisisofshooore"
 
 # Початкові налаштування
 message_template = "Новий пост з каналу:\n\n{content}\n\n{hashtags}"
-permanent_hashtags = ["#Offshore", "#JobOffer", "#NewVacancy"]
+permanent_hashtags = ["#Offshore", "#JobOffer"]
 dynamic_hashtags = {
     "Chief mate": "#ChiefMate",
     "dp2": "#DP2",
