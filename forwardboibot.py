@@ -26,7 +26,7 @@ source_channels = [
     "@forwardboibottestchannel",
     "@OnlyOffshore",
     "@roster_marine",
-    "@jobatsealive"
+    "@jobatsealive",
     "@offshoreatsea",
     "@shipscreweu"
 ]
